@@ -1,43 +1,56 @@
-name: Weekly FBref Data Scrape
+name: Weekly FBref Scraper
 
 on:
+  # Runs every Monday at 2:00 AM UTC
   schedule:
-    # Every Monday at 02:00 UTC
-    - cron: '0 2 * * 1'
-  workflow_dispatch:  # Allow manual trigger from GitHub Actions UI
+    - cron: "0 2 * * 1"
+
+  # Allows you to trigger it manually from the Actions tab
+  workflow_dispatch:
 
 jobs:
   scrape:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: backend
+    timeout-minutes: 60
 
     steps:
+      # ── 1. Check out the repo ──────────────────────────────────────────────
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # ── 2. Set up Python ───────────────────────────────────────────────────
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
-          cache: 'pip'
+          python-version: "3.11"
+          cache: "pip"
           cache-dependency-path: backend/requirements.txt
 
-      - name: Install dependencies
+      # ── 3. Install dependencies ────────────────────────────────────────────
+      - name: Install Python dependencies
+        working-directory: backend
         run: pip install -r requirements.txt
 
-      - name: Install Playwright browsers
-        run: playwright install chromium
+      # ── 4. Install Playwright browser ─────────────────────────────────────
+      - name: Install Playwright Chromium
+        run: playwright install chromium --with-deps
 
-      - name: Run player stats scraper
+      # ── 5. Run player scraper ──────────────────────────────────────────────
+      - name: Scrape player stats
+        working-directory: backend
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
         run: python -m scraper.fbref_players
 
-      - name: Run team stats scraper
+      # ── 6. Run team scraper ────────────────────────────────────────────────
+      - name: Scrape team stats
+        working-directory: backend
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
         run: python -m scraper.fbref_teams
+
+      # ── 7. Report success ──────────────────────────────────────────────────
+      - name: Done
+        run: echo "Scrape completed successfully at $(date)"
